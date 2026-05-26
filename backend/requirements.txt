@@ -1,0 +1,5 @@
+fastapi
+uvicorn
+aisuite[ollama]
+pydantic
+duckduckgo_search
