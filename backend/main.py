@@ -13,11 +13,42 @@ import os
 import json
 import urllib.request
 import urllib.error
-from fastapi import FastAPI, HTTPException
+import asyncio
+from fastapi import FastAPI, HTTPException, Header, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import aisuite as ai
 import database
+
+def get_aisuite_client(
+    provider: str,
+    x_gemini_key: str | None = None,
+    x_openai_key: str | None = None,
+    x_anthropic_key: str | None = None
+) -> ai.Client:
+    config = {
+        "ollama": {
+            "timeout": 300
+        }
+    }
+    
+    if provider == "gemini":
+        key = x_gemini_key or os.getenv("GEMINI_API_KEY")
+        if key:
+            config["gemini"] = {"api_key": key}
+    elif provider == "openai":
+        env_key = os.getenv("OPENAI_API_KEY")
+        key = x_openai_key
+        if not key and env_key and env_key != "ollama":
+            key = env_key
+        if key:
+            config["openai"] = {"api_key": key}
+    elif provider == "anthropic":
+        key = x_anthropic_key or os.getenv("ANTHROPIC_API_KEY")
+        if key:
+            config["anthropic"] = {"api_key": key}
+            
+    return ai.Client(config)
 
 # Custom .env loader to load TAVILY_API_KEY from backend/.env or root .env
 def load_env():
@@ -48,13 +79,53 @@ os.environ["OPENAI_API_KEY"] = "ollama"
 app = FastAPI(title="Infinity Support Backend")
 
 # Configure CORS
+origins_env = os.getenv("ALLOWED_ORIGINS")
+if origins_env:
+    origins = [o.strip() for o in origins_env.split(",") if o.strip()]
+else:
+    origins = ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify the exact origins
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Passcode Verification Dependency
+def verify_password(x_app_password: str | None = Header(None)):
+    app_password = os.getenv("APP_PASSWORD")
+    if app_password:
+        if not x_app_password or x_app_password != app_password:
+            raise HTTPException(status_code=401, detail="Unauthorized: Invalid or missing App Passcode.")
+
+@app.get("/api/config")
+def get_config():
+    """
+    Returns application configuration, such as whether authentication is required.
+    """
+    app_password = os.getenv("APP_PASSWORD")
+    return {
+        "auth_required": bool(app_password)
+    }
+
+@app.get("/api/ollama/models")
+def get_ollama_models():
+    """
+    Checks connection to local Ollama instance and returns the list of pulled models.
+    """
+    url = "http://127.0.0.1:11434/api/tags"
+    req = urllib.request.Request(url, method="GET")
+    try:
+        with urllib.request.urlopen(req, timeout=2.0) as response:
+            if response.status == 200:
+                data = json.loads(response.read().decode("utf-8"))
+                models = [m.get("name") for m in data.get("models", [])]
+                return {"status": "ONLINE", "models": models}
+    except Exception as e:
+        print("Ollama connection check failed:", str(e))
+    return {"status": "OFFLINE", "models": []}
 
 # Initialize aisuite client with a generous timeout (300 seconds) for Ollama model loading
 client = ai.Client({
@@ -78,6 +149,8 @@ class SessionSaveSchema(BaseModel):
 class ChatRequestSchema(BaseModel):
     messages: list[MessageSchema]
     web_search: bool = False
+    provider: str | None = None
+    model: str | None = None
 
 def search_web(query: str, max_results: int = 5) -> list[dict]:
     api_key = os.environ.get("TAVILY_API_KEY")
@@ -122,14 +195,14 @@ def search_web(query: str, max_results: int = 5) -> list[dict]:
     except Exception as e:
         raise RuntimeError(f"Tavily search connection failed: {str(e)}")
 
-@app.get("/api/sessions")
+@app.get("/api/sessions", dependencies=[Depends(verify_password)])
 def get_sessions():
     try:
         return database.get_all_sessions()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/sessions/{session_id}")
+@app.get("/api/sessions/{session_id}", dependencies=[Depends(verify_password)])
 def get_session(session_id: int):
     try:
         session = database.get_session(session_id)
@@ -141,7 +214,7 @@ def get_session(session_id: int):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.delete("/api/sessions/{session_id}")
+@app.delete("/api/sessions/{session_id}", dependencies=[Depends(verify_password)])
 def delete_session(session_id: int):
     try:
         session = database.get_session(session_id)
@@ -154,7 +227,7 @@ def delete_session(session_id: int):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/api/sessions")
+@app.post("/api/sessions", dependencies=[Depends(verify_password)])
 def save_session(session_data: SessionSaveSchema):
     try:
         messages_dict = [msg.model_dump() for msg in session_data.messages]
@@ -163,13 +236,22 @@ def save_session(session_data: SessionSaveSchema):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/api/chat")
-def chat(chat_data: ChatRequestSchema):
+@app.post("/api/chat", dependencies=[Depends(verify_password)])
+async def chat(
+    chat_data: ChatRequestSchema,
+    x_gemini_key: str | None = Header(None),
+    x_openai_key: str | None = Header(None),
+    x_anthropic_key: str | None = Header(None)
+):
     try:
         # Reload environment variables to ensure any newly written key is picked up
         load_env()
         
-        print(f"\n--- Chat Request Received (web_search={chat_data.web_search}, messages={len(chat_data.messages)}) ---")
+        provider = chat_data.provider or "ollama"
+        model_name = chat_data.model or "gemma4:e4b"
+        full_model_str = f"{provider}:{model_name}"
+        
+        print(f"\n--- Chat Request Received (provider={provider}, model={model_name}, web_search={chat_data.web_search}, messages={len(chat_data.messages)}) ---")
         
         search_context = ""
         sources = []
@@ -269,8 +351,10 @@ def chat(chat_data: ChatRequestSchema):
             })
             
         # Send chat completion request using aisuite
-        response = client.chat.completions.create(
-            model=MODEL_NAME,
+        local_client = get_aisuite_client(provider, x_gemini_key, x_openai_key, x_anthropic_key)
+        response = await asyncio.to_thread(
+            local_client.chat.completions.create,
+            model=full_model_str,
             messages=aisuite_messages,
             temperature=0.7
         )
@@ -285,7 +369,16 @@ def chat(chat_data: ChatRequestSchema):
         raise
     except Exception as e:
         print("Error during chat completion:", str(e))
-        raise HTTPException(status_code=500, detail=f"Failed to communicate with LLM: {str(e)}")
+        err_msg = str(e)
+        if provider == "ollama":
+            detail = (
+                f"Failed to communicate with local Ollama: {err_msg}. "
+                f"Make sure Ollama is running and you have pulled the model '{model_name}' "
+                f"via 'ollama pull {model_name}'."
+            )
+        else:
+            detail = f"Failed to communicate with LLM ({provider}:{model_name}): {err_msg}. Please verify your API key or network connection."
+        raise HTTPException(status_code=500, detail=detail)
 
 if __name__ == "__main__":
     import uvicorn

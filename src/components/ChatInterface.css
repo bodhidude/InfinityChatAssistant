@@ -251,6 +251,70 @@
   white-space: pre-wrap; /* Preserve formatting and linebreaks from LLM */
 }
 
+.message-text-formatted {
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.message-text-formatted p.markdown-paragraph {
+  margin-bottom: 0.75rem;
+}
+
+.message-text-formatted p.markdown-paragraph:last-child {
+  margin-bottom: 0;
+}
+
+.message-text-formatted .markdown-spacer {
+  height: 0.75rem;
+}
+
+.message-text-formatted .markdown-list {
+  margin-left: 1.25rem;
+  margin-bottom: 0.75rem;
+  padding-left: 0.25rem;
+}
+
+.message-text-formatted .markdown-list li {
+  margin-bottom: 0.25rem;
+}
+
+.message-text-formatted .inline-code {
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  padding: 0.1rem 0.3rem;
+  border-radius: 0.25rem;
+  font-family: monospace;
+  font-size: 0.85rem;
+  color: var(--accent-primary);
+}
+
+.message-text-formatted .code-block-wrapper {
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  margin: 0.75rem 0;
+  overflow: hidden;
+  font-family: monospace;
+}
+
+.message-text-formatted .code-block-header {
+  background-color: rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid var(--border-color);
+  padding: 0.35rem 0.75rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.message-text-formatted .code-block {
+  display: block;
+  padding: 0.75rem;
+  font-size: 0.85rem;
+  overflow-x: auto;
+  color: #e2e8f0;
+}
+
 .message-time {
   display: block;
   font-size: 0.7rem;

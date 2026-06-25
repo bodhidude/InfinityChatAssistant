@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, Bot, LogOut, CheckCircle, Plus, Globe } from 'lucide-react';
+import { renderMarkdown } from '../utils/markdown';
 import './ChatInterface.css';
 
 const ChatInterface = ({ 
@@ -117,7 +118,13 @@ const ChatInterface = ({
               <div className="message-container">
                 <div className={`message-bubble ${msg.sender === 'User' ? 'user-bubble' : 'bot-bubble'}`}>
                   <span className="message-sender">{msg.sender}</span>
-                  <p className="message-text">{msg.text}</p>
+                  {msg.sender === 'User' ? (
+                    <p className="message-text">{msg.text}</p>
+                  ) : (
+                    <div className="message-text-formatted">
+                      {renderMarkdown(msg.text)}
+                    </div>
+                  )}
                   <span className="message-time">{msg.timestamp}</span>
                 </div>
                 {msg.sender === 'Infinity' && msg.sources && msg.sources.length > 0 && (
