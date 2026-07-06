@@ -156,9 +156,37 @@ function App() {
     setWebSearchActive(false);
   };
 
-  const handleSendMessage = async (text, webSearchActive = false) => {
+  const handleUploadFile = async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const response = await authenticatedFetch('/api/upload', {
+      method: 'POST',
+      body: formData
+    });
+    
+    if (!response.ok) {
+      let errorDetail = "Failed to upload file";
+      try {
+        const errJson = await response.json();
+        if (errJson && errJson.detail) {
+          errorDetail = errJson.detail;
+        }
+      } catch (e) {}
+      throw new Error(errorDetail);
+    }
+    
+    return await response.json(); // returns { filename, content, size }
+  };
+
+  const handleSendMessage = async (text, webSearchActive = false, attachedFile = null) => {
     const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const userMessage = { sender: 'User', text, timestamp };
+    const userMessage = { 
+      sender: 'User', 
+      text, 
+      timestamp, 
+      attachments: attachedFile ? [attachedFile] : [] 
+    };
     
     // Add user message to UI immediately
     const updatedMessages = [...messages, userMessage];
@@ -327,6 +355,8 @@ function App() {
             saveNotification={saveNotification}
             webSearchActive={webSearchActive}
             setWebSearchActive={setWebSearchActive}
+            aiProvider={aiProvider}
+            onUploadFile={handleUploadFile}
           />
         </section>
       </main>

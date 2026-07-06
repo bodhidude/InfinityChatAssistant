@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Bot, LogOut, CheckCircle, Plus, Globe } from 'lucide-react';
+import { Send, Bot, LogOut, CheckCircle, Plus, Globe, Paperclip, FileText, AlertTriangle } from 'lucide-react';
 import { renderMarkdown } from '../utils/markdown';
 import './ChatInterface.css';
 
@@ -14,12 +14,19 @@ const ChatInterface = ({
   isSaving,
   saveNotification,
   webSearchActive,
-  setWebSearchActive
+  setWebSearchActive,
+  aiProvider,
+  onUploadFile
 }) => {
   const [inputValue, setInputValue] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [sessionTitleInput, setSessionTitleInput] = useState('');
+  const [attachedFile, setAttachedFile] = useState(null);
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const [uploadError, setUploadError] = useState(null);
+  
   const messagesEndRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -29,12 +36,53 @@ const ChatInterface = ({
     scrollToBottom();
   }, [messages, isThinking]);
 
+  const handleUploadButtonClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadError(null);
+    
+    // Client side size validation (20MB)
+    const maxBytes = 20 * 1024 * 1024;
+    if (file.size > maxBytes) {
+      setUploadError("File size exceeds the 20MB limit.");
+      e.target.value = '';
+      return;
+    }
+
+    // Client side file extension validation
+    const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+    if (ext !== '.pdf' && ext !== '.txt' && ext !== '.md') {
+      setUploadError("Unsupported file type. Only PDF, TXT, and MD files are allowed.");
+      e.target.value = '';
+      return;
+    }
+
+    setIsUploadingFile(true);
+    try {
+      const data = await onUploadFile(file);
+      setAttachedFile(data);
+    } catch (err) {
+      console.error("Upload error:", err);
+      setUploadError(err.message || "Failed to upload and parse file.");
+    } finally {
+      setIsUploadingFile(false);
+      e.target.value = '';
+    }
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!inputValue.trim() || isThinking) return;
+    if ((!inputValue.trim() && !attachedFile) || isThinking || isUploadingFile) return;
 
-    onSendMessage(inputValue.trim(), webSearchActive);
+    const textToSend = inputValue.trim() || `Analyze the attached file: ${attachedFile.filename}`;
+    onSendMessage(textToSend, webSearchActive, attachedFile);
     setInputValue('');
+    setAttachedFile(null);
   };
 
   const handleEndSessionClick = () => {
@@ -125,6 +173,16 @@ const ChatInterface = ({
                       {renderMarkdown(msg.text)}
                     </div>
                   )}
+                  {msg.attachments && msg.attachments.length > 0 && (
+                    <div className="message-attachments">
+                      {msg.attachments.map((att, aIdx) => (
+                        <div key={aIdx} className="bubble-attachment-chip">
+                          <FileText size={12} className="attachment-icon" />
+                          <span>{att.filename}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <span className="message-time">{msg.timestamp}</span>
                 </div>
                 {msg.sender === 'Infinity' && msg.sources && msg.sources.length > 0 && (
@@ -203,17 +261,79 @@ const ChatInterface = ({
 
       {/* Input Field */}
       <div className="chat-input-area">
+        {/* Warning banner for Ollama if file is attached */}
+        {attachedFile && aiProvider === 'ollama' && (
+          <div className="ollama-context-warning animate-fade-in">
+            <AlertTriangle size={14} className="warning-icon" />
+            <span>Local Ollama models have limited context windows. Large files may cause performance degradation or truncation.</span>
+          </div>
+        )}
+        
+        {/* Attached File Chip */}
+        {attachedFile && (
+          <div className="attached-file-chip animate-fade-in">
+            <div className="attached-file-info">
+              <FileText size={16} className="file-icon" />
+              <span className="file-name">{attachedFile.filename} ({Math.round(attachedFile.size / 1024)} KB)</span>
+            </div>
+            <button 
+              type="button" 
+              className="remove-file-btn" 
+              onClick={() => setAttachedFile(null)}
+              title="Remove file"
+            >
+              ×
+            </button>
+          </div>
+        )}
+
+        {/* Upload error display */}
+        {uploadError && (
+          <div className="upload-error-message animate-fade-in">
+            <AlertTriangle size={14} className="error-icon" />
+            <span className="error-text">{uploadError}</span>
+            <button type="button" className="clear-error-btn" onClick={() => setUploadError(null)}>×</button>
+          </div>
+        )}
+
+        {/* Uploading loading display */}
+        {isUploadingFile && (
+          <div className="file-uploading-indicator animate-fade-in">
+            <div className="upload-spinner"></div>
+            <span>Uploading and extracting text...</span>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="chat-form">
           <button
             type="button"
             className={`web-search-toggle ${webSearchActive ? 'active' : ''}`}
             onClick={() => setWebSearchActive(!webSearchActive)}
             title="Toggle Web Search"
-            disabled={isThinking}
+            disabled={isThinking || isUploadingFile}
           >
             <Globe size={18} />
             <span>Web Search</span>
           </button>
+          
+          <button
+            type="button"
+            className={`file-upload-btn ${attachedFile ? 'active' : ''}`}
+            onClick={handleUploadButtonClick}
+            title="Attach a PDF or TXT file"
+            disabled={isThinking || isUploadingFile}
+          >
+            <Paperclip size={18} />
+            <span>Attach File</span>
+          </button>
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            accept=".pdf,.txt,.md"
+            style={{ display: 'none' }}
+          />
+
           <input
             type="text"
             value={inputValue}
@@ -221,17 +341,19 @@ const ChatInterface = ({
             placeholder={
               isThinking 
                 ? "Infinity is thinking..." 
-                : webSearchActive 
-                  ? "Ask Infinity to search the web..." 
-                  : "Type your message here..."
+                : isUploadingFile
+                  ? "Processing file..."
+                  : webSearchActive 
+                    ? "Ask Infinity to search the web..." 
+                    : "Type your message or attach a file..."
             }
             className="chat-input"
-            disabled={isThinking}
+            disabled={isThinking || isUploadingFile}
           />
           <button 
             type="submit" 
             className="chat-submit-btn" 
-            disabled={!inputValue.trim() || isThinking}
+            disabled={(!inputValue.trim() && !attachedFile) || isThinking || isUploadingFile}
           >
             <span>Ask Infinity</span>
             <Send size={18} />

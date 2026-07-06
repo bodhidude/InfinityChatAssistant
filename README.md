@@ -8,9 +8,12 @@ Built on a modern stack utilizing **React + Vite** for the frontend and **FastAP
 
 ## 🚀 Key Features
 
-* **LLM Control Center**: Dynamically switch between **Local (Ollama)**, **Gemini**, **OpenAI**, and **Anthropic** right from the sidebar.
+* **Collapsible LLM Control Center**: Collapses into a single toggle button at the bottom of the sidebar to maximize visible chat history. Expand it instantly to switch between **Local (Ollama)**, **Gemini**, **OpenAI**, and **Anthropic**.
   * *Local Ollama*: Dynamically pulls your locally installed models in a dropdown list, with a fallback option to input custom model tags or use typed names. Displays status checks to verify if Ollama is online.
   * *Commercial Providers*: Integrated dropdown model choosers for the latest models (GPT-5, Gemini 2.5/3.5, Claude 4, etc.) and in-app API key configuration.
+* **PDF & TXT File Ingestion**: Attach PDF, TXT, or MD documents (up to 20MB and 500 pages) to chat messages. Extracted text context is automatically structured and injected into the LLM prompt.
+  * *Ollama Warning*: Displays context window warnings when Ollama is active to remind users of local resource constraints.
+  * *Scanned PDF Detection*: Automatically checks for and blocks scanned/empty PDFs to guide users to upload searchable files.
 * **Tavily RAG Web Search**: Real-time internet access with a manual toggle or auto-detection keywords (e.g. asking for "latest news", "today", "current weather"). Formats source citations and search snippets directly below response bubbles.
 * **Passcode Protection**: Keep your conversations secure when hosting online. The app features a passcode gate modal that locks the application interface and credentials until a matching server-configured passcode is supplied.
 * **Polished UX & Safe Markdown**: Responsive sidebar design for chat history, fluid transitions, and a secure custom markdown parser rendering code blocks, lists, and inline styles safely (100% XSS protected).

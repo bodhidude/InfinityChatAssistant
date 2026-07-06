@@ -14,7 +14,7 @@ import json
 import urllib.request
 import urllib.error
 import asyncio
-from fastapi import FastAPI, HTTPException, Header, Depends
+from fastapi import FastAPI, HTTPException, Header, Depends, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import aisuite as ai
@@ -35,7 +35,10 @@ def get_aisuite_client(
     if provider == "gemini":
         key = x_gemini_key or os.getenv("GEMINI_API_KEY")
         if key:
-            config["gemini"] = {"api_key": key}
+            config["openai"] = {
+                "api_key": key,
+                "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/"
+            }
     elif provider == "openai":
         env_key = os.getenv("OPENAI_API_KEY")
         key = x_openai_key
@@ -135,11 +138,17 @@ client = ai.Client({
 })
 MODEL_NAME = "ollama:gemma4:e4b"
 
+class AttachmentSchema(BaseModel):
+    filename: str
+    content: str
+    size: int | None = None
+
 class MessageSchema(BaseModel):
     sender: str
     text: str
     timestamp: str
     sources: list[dict] | None = None
+    attachments: list[AttachmentSchema] | None = None
 
 class SessionSaveSchema(BaseModel):
     id: int | None = None
@@ -195,6 +204,82 @@ def search_web(query: str, max_results: int = 5) -> list[dict]:
     except Exception as e:
         raise RuntimeError(f"Tavily search connection failed: {str(e)}")
 
+@app.post("/api/upload", dependencies=[Depends(verify_password)])
+async def upload_file(
+    file: UploadFile = File(...),
+    x_app_password: str | None = Header(None)
+):
+    import io
+    import pypdf
+    
+    # 1. Validate file extension/type
+    filename = file.filename or "unknown"
+    ext = os.path.splitext(filename)[1].lower()
+    if ext not in [".pdf", ".txt", ".md"]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file type '{ext}'. Only PDF, TXT, and MD files are allowed."
+        )
+        
+    # 2. Validate file size (20MB limit)
+    max_bytes = 20 * 1024 * 1024
+    contents = await file.read(max_bytes + 1)
+    file_size = len(contents)
+    if file_size > max_bytes:
+        raise HTTPException(
+            status_code=400,
+            detail="File size exceeds the 20MB limit."
+        )
+        
+    extracted_text = ""
+    if ext == ".pdf":
+        try:
+            file_data = io.BytesIO(contents)
+            reader = pypdf.PdfReader(file_data)
+            num_pages = len(reader.pages)
+            
+            # 3. Enforce 500-page limit
+            if num_pages > 500:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"PDF exceeds the 500-page limit (found {num_pages} pages)."
+                )
+                
+            # 4. Extract text from pages
+            for page in reader.pages:
+                page_text = page.extract_text()
+                if page_text:
+                    extracted_text += page_text + "\n"
+            
+            # 5. Check if scanned (no text extracted)
+            if not extracted_text.strip():
+                raise HTTPException(
+                    status_code=400,
+                    detail="Scanned PDFs are not supported. No extractable text found in the document."
+                )
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Failed to parse PDF document: {str(e)}"
+            )
+    else:
+        # Plain text file (TXT, MD)
+        try:
+            extracted_text = contents.decode("utf-8", errors="replace")
+        except Exception as e:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Failed to read text file: {str(e)}"
+            )
+            
+    return {
+        "filename": filename,
+        "content": extracted_text,
+        "size": file_size
+    }
+
 @app.get("/api/sessions", dependencies=[Depends(verify_password)])
 def get_sessions():
     try:
@@ -249,7 +334,8 @@ async def chat(
         
         provider = chat_data.provider or "ollama"
         model_name = chat_data.model or "gemma4:e4b"
-        full_model_str = f"{provider}:{model_name}"
+        aisuite_provider = "openai" if provider == "gemini" else provider
+        full_model_str = f"{aisuite_provider}:{model_name}"
         
         print(f"\n--- Chat Request Received (provider={provider}, model={model_name}, web_search={chat_data.web_search}, messages={len(chat_data.messages)}) ---")
         
@@ -345,9 +431,22 @@ async def chat(
             # Filter out any previous connection error notifications
             if msg.sender == "Infinity" and msg.text.startswith("Web search failed:"):
                 continue
+                
+            msg_content = msg.text
+            if msg.attachments:
+                attachment_blocks = []
+                for att in msg.attachments:
+                    attachment_blocks.append(
+                        f"[Attached File: {att.filename}]\n"
+                        f"--- START OF FILE CONTENT ---\n"
+                        f"{att.content}\n"
+                        f"--- END OF FILE CONTENT ---"
+                    )
+                msg_content = "\n\n".join(attachment_blocks) + "\n\n" + msg_content
+                
             aisuite_messages.append({
                 "role": role,
-                "content": msg.text
+                "content": msg_content
             })
             
         # Send chat completion request using aisuite

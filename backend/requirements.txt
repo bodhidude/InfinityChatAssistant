@@ -3,3 +3,7 @@ uvicorn
 aisuite[ollama]
 pydantic
 duckduckgo_search
+openai
+anthropic
+pypdf
+python-multipart

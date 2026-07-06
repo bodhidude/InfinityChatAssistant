@@ -750,3 +750,192 @@
 .animate-fade-in {
   animation: fadeIn 0.25s ease-out;
 }
+
+/* File Upload Styles */
+.file-upload-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 1.5rem;
+  padding: 0.5rem 1.25rem;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  user-select: none;
+}
+
+.file-upload-btn:hover:not(:disabled) {
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.file-upload-btn.active {
+  background-color: rgba(94, 234, 212, 0.1); /* Teal tint */
+  color: var(--accent-tertiary);
+  border-color: var(--accent-tertiary);
+  box-shadow: 0 0 12px rgba(94, 234, 212, 0.2);
+}
+
+.file-upload-btn.active:hover:not(:disabled) {
+  background-color: rgba(94, 234, 212, 0.18);
+  box-shadow: 0 0 16px rgba(94, 234, 212, 0.35);
+  color: var(--text-primary);
+}
+
+.file-upload-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Attached File Preview Chip */
+.attached-file-chip {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  padding: 0.5rem 1rem;
+  margin-bottom: 0.75rem;
+  gap: 1rem;
+}
+
+.attached-file-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.attached-file-info .file-icon {
+  color: var(--accent-primary);
+}
+
+.remove-file-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0 0.25rem;
+  line-height: 1;
+  transition: color 0.2s;
+}
+
+.remove-file-btn:hover {
+  color: #f87171; /* red-400 */
+}
+
+/* Ollama Context Window Warning Banner */
+.ollama-context-warning {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: rgba(245, 158, 11, 0.1); /* Amber tint */
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 0.5rem;
+  padding: 0.5rem 1rem;
+  margin-bottom: 0.75rem;
+  color: #fbbf24; /* Amber-400 */
+  font-size: 0.85rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.ollama-context-warning .warning-icon {
+  flex-shrink: 0;
+}
+
+/* Upload Error Banner */
+.upload-error-message {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  background-color: rgba(239, 68, 68, 0.1); /* Red tint */
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 0.5rem;
+  padding: 0.5rem 1rem;
+  margin-bottom: 0.75rem;
+  color: #f87171; /* Red-400 */
+  font-size: 0.85rem;
+}
+
+.error-icon {
+  flex-shrink: 0;
+}
+
+.error-text {
+  flex-grow: 1;
+}
+
+.clear-error-btn {
+  background: transparent;
+  border: none;
+  color: #f87171;
+  font-size: 1.1rem;
+  cursor: pointer;
+  line-height: 1;
+}
+
+/* Uploading Spinner */
+.file-uploading-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background-color: rgba(56, 189, 248, 0.05);
+  border: 1px dashed var(--accent-primary);
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.75rem;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.upload-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(56, 189, 248, 0.2);
+  border-top-color: var(--accent-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+/* Message Bubble Attachment Styles */
+.message-attachments {
+  margin-top: 0.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.bubble-attachment-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background-color: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text-primary);
+  text-decoration: none;
+  cursor: default;
+}
+
+.bubble-attachment-chip .attachment-icon {
+  color: var(--accent-primary);
+}
+
+.user-bubble .bubble-attachment-chip {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-color: rgba(255, 255, 255, 0.1);
+}

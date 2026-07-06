@@ -33,15 +33,18 @@ def init_db():
         text TEXT NOT NULL,
         timestamp TEXT,
         sources TEXT,
+        attachments TEXT,
         FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
     )
     """)
     
-    # Check if 'sources' column exists in messages table, if not add it (migration for existing DBs)
+    # Check if 'sources' and 'attachments' columns exist in messages table, if not add them (migration for existing DBs)
     cursor.execute("PRAGMA table_info(messages)")
     columns = [row[1] for row in cursor.fetchall()]
     if "sources" not in columns:
         cursor.execute("ALTER TABLE messages ADD COLUMN sources TEXT")
+    if "attachments" not in columns:
+        cursor.execute("ALTER TABLE messages ADD COLUMN attachments TEXT")
     
     # Trigger to update updated_at in sessions
     cursor.execute("""
@@ -100,9 +103,12 @@ def save_session(session_id: int | None, title: str, messages: list[dict]) -> in
         sources_val = None
         if "sources" in msg and msg["sources"]:
             sources_val = json.dumps(msg["sources"])
+        attachments_val = None
+        if "attachments" in msg and msg["attachments"]:
+            attachments_val = json.dumps(msg["attachments"])
         cursor.execute(
-            "INSERT INTO messages (session_id, sender, text, timestamp, sources) VALUES (?, ?, ?, ?, ?)",
-            (session_id, msg.get("sender"), msg.get("text"), msg.get("timestamp"), sources_val)
+            "INSERT INTO messages (session_id, sender, text, timestamp, sources, attachments) VALUES (?, ?, ?, ?, ?, ?)",
+            (session_id, msg.get("sender"), msg.get("text"), msg.get("timestamp"), sources_val, attachments_val)
         )
         
     conn.commit()
@@ -129,7 +135,7 @@ def get_session(session_id: int) -> dict | None:
         return None
         
     # Get messages
-    cursor.execute("SELECT sender, text, timestamp, sources FROM messages WHERE session_id = ? ORDER BY id ASC", (session_id,))
+    cursor.execute("SELECT sender, text, timestamp, sources, attachments FROM messages WHERE session_id = ? ORDER BY id ASC", (session_id,))
     message_rows = cursor.fetchall()
     
     conn.close()
@@ -146,6 +152,15 @@ def get_session(session_id: int) -> dict | None:
                 msg_dict["sources"] = []
         else:
             msg_dict["sources"] = []
+            
+        if "attachments" in msg_dict and msg_dict["attachments"]:
+            try:
+                msg_dict["attachments"] = json.loads(msg_dict["attachments"])
+            except Exception:
+                msg_dict["attachments"] = []
+        else:
+            msg_dict["attachments"] = []
+            
         messages_list.append(msg_dict)
         
     session["messages"] = messages_list

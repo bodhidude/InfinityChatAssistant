@@ -1,34 +1,30 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, Key, Cpu, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Settings, Key, Cpu, CheckCircle, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
 import './LlmControl.css';
 
 const PROVIDER_MODELS = {
   gemini: [
-    { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash' },
-    { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro' },
-    { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash' },
-    { id: 'gemini-2.0-pro-exp-02-05', name: 'Gemini 2.0 Pro (Exp)' },
-    { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash' },
-    { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro' },
     { id: 'gemini-3.5-flash', name: 'Gemini 3.5 Flash' },
-    { id: 'gemini-3.1-pro', name: 'Gemini 3.1 Pro' }
+    { id: 'gemini-3.1-pro', name: 'Gemini 3.1 Pro' },
+    { id: 'gemini-3.1-flash-lite', name: 'Gemini 3.1 Flash-Lite' },
+    { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash' },
+    { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro' }
   ],
   openai: [
-    { id: 'gpt-4o-mini', name: 'GPT-4o Mini' },
-    { id: 'gpt-4o', name: 'GPT-4o' },
-    { id: 'o1-mini', name: 'o1 Mini' },
-    { id: 'o1', name: 'o1' },
-    { id: 'o3-mini', name: 'o3 Mini' },
-    { id: 'gpt-5.5', name: 'GPT-5.5 Flagship' },
-    { id: 'gpt-5.4-mini', name: 'GPT-5.4 Mini' }
+    { id: 'gpt-5.6-sol', name: 'GPT-5.6 Sol' },
+    { id: 'gpt-5.6-terra', name: 'GPT-5.6 Terra' },
+    { id: 'gpt-5.6-luna', name: 'GPT-5.6 Luna' },
+    { id: 'gpt-5.5', name: 'GPT-5.5' },
+    { id: 'gpt-5.5-pro', name: 'GPT-5.5 Pro' },
+    { id: 'gpt-5.5-instant', name: 'GPT-5.5 Instant' },
+    { id: 'gpt-5.4-mini', name: 'GPT-5.4 Mini' },
+    { id: 'gpt-5.4-nano', name: 'GPT-5.4 Nano' }
   ],
   anthropic: [
-    { id: 'claude-3-5-sonnet', name: 'Claude 3.5 Sonnet' },
-    { id: 'claude-3-5-haiku', name: 'Claude 3.5 Haiku' },
-    { id: 'claude-3-opus', name: 'Claude 3 Opus' },
-    { id: 'claude-4.8-opus', name: 'Claude 4.8 Opus' },
-    { id: 'claude-4.6-sonnet', name: 'Claude 4.6 Sonnet' },
-    { id: 'claude-4.5-haiku', name: 'Claude 4.5 Haiku' }
+    { id: 'claude-fable-5', name: 'Claude Fable 5' },
+    { id: 'claude-sonnet-5', name: 'Claude Sonnet 5' },
+    { id: 'claude-opus-4-8', name: 'Claude Opus 4.8' },
+    { id: 'claude-haiku-4-5', name: 'Claude Haiku 4.5' }
   ]
 };
 
@@ -49,6 +45,7 @@ const LlmControl = ({
   const [ollamaStatus, setOllamaStatus] = useState('PENDING');
   const [ollamaModels, setOllamaModels] = useState([]);
   const [isCustomOllama, setIsCustomOllama] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true);
 
   useEffect(() => {
     if (aiProvider === 'ollama') {
@@ -85,11 +82,11 @@ const LlmControl = ({
   const handleProviderChange = (provider) => {
     setAiProvider(provider);
     if (provider === 'gemini') {
-      setAiModel('gemini-2.5-flash');
+      setAiModel('gemini-3.5-flash');
     } else if (provider === 'openai') {
-      setAiModel('gpt-4o-mini');
+      setAiModel('gpt-5.5');
     } else if (provider === 'anthropic') {
-      setAiModel('claude-3-5-sonnet');
+      setAiModel('claude-sonnet-5');
     } else if (provider === 'ollama') {
       // Keep model name intact if already set and we have no dynamic models fetched yet
       if (ollamaModels.length > 0) {
@@ -104,11 +101,35 @@ const LlmControl = ({
 
   const currentModels = PROVIDER_MODELS[aiProvider] || [];
 
+  if (isCollapsed) {
+    return (
+      <div className="llm-control-container collapsed">
+        <button 
+          className="llm-collapse-toggle-btn"
+          onClick={() => setIsCollapsed(false)}
+        >
+          <div className="llm-toggle-left">
+            <Settings size={16} className="llm-header-icon" />
+            <span>LLM Settings ({aiProvider === 'ollama' ? 'Local' : aiProvider})</span>
+          </div>
+          <ChevronUp size={16} className="llm-toggle-chevron" />
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <div className="llm-control-container">
-      <div className="llm-control-header">
-        <Settings size={16} className="llm-header-icon" />
-        <span className="llm-control-title">LLM Control Center</span>
+    <div className="llm-control-container expanded">
+      <div 
+        className="llm-control-header collapsible" 
+        onClick={() => setIsCollapsed(true)}
+        title="Collapse settings"
+      >
+        <div className="llm-control-header-left">
+          <Settings size={16} className="llm-header-icon" />
+          <span className="llm-control-title">LLM Control Center</span>
+        </div>
+        <ChevronDown size={16} className="llm-toggle-chevron" />
       </div>
 
       <div className="llm-providers-grid">
