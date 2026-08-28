@@ -136,7 +136,7 @@ client = ai.Client({
         "timeout": 300
     }
 })
-MODEL_NAME = "ollama:gemma4:e4b"
+MODEL_NAME = "ollama:qwen2.5:14b"
 
 class AttachmentSchema(BaseModel):
     filename: str
@@ -333,7 +333,7 @@ async def chat(
         load_env()
         
         provider = chat_data.provider or "ollama"
-        model_name = chat_data.model or "gemma4:e4b"
+        model_name = chat_data.model or "qwen2.5:14b"
         aisuite_provider = "openai" if provider == "gemini" else provider
         full_model_str = f"{aisuite_provider}:{model_name}"
         

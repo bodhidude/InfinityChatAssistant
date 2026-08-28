@@ -20,7 +20,7 @@ function App() {
     return val !== 'false';
   });
   const [aiProvider, setAiProvider] = useState(() => localStorage.getItem('inf_ai_provider') || 'ollama');
-  const [aiModel, setAiModel] = useState(() => localStorage.getItem('inf_ai_model') || 'gemma4:e4b');
+  const [aiModel, setAiModel] = useState(() => localStorage.getItem('inf_ai_model') || 'qwen2.5:14b');
   const [openaiKey, setOpenaiKey] = useState(() => {
     const saved = localStorage.getItem('inf_openai_key');
     const savedToggle = localStorage.getItem('inf_save_keys') !== 'false';
@@ -312,13 +312,13 @@ function App() {
 
   return (
     <div className="app-container">
-      <header className="header">
-        <h1>Infinity AI Assistant</h1>
-        <p>At your service, how can I help?</p>
-      </header>
-      
       <main className="main-layout">
-        <aside className="col-faq">
+        <aside className="col-sidebar">
+          <header className="sidebar-header">
+            <h1>Infinity AI Assistant</h1>
+            <p>At your service, how can I help?</p>
+          </header>
+
           <ChatHistory 
             sessions={sessions}
             activeSessionId={activeSessionId}

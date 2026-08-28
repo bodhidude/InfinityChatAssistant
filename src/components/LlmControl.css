@@ -90,6 +90,35 @@
   font-weight: 600;
 }
 
+.llm-refresh-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.65rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: 0.25rem;
+  transition: all 0.2s ease-in-out;
+}
+
+.llm-refresh-btn:hover {
+  color: var(--accent-primary);
+  background-color: rgba(56, 189, 248, 0.1);
+  border-color: rgba(56, 189, 248, 0.2);
+}
+
+.spin {
+  animation: llm-spin 1s linear infinite;
+}
+
+@keyframes llm-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 .llm-input,
 .llm-select {
   background-color: var(--bg-surface);

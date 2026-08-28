@@ -1,8 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, Key, Cpu, CheckCircle, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
+import { Settings, Key, Cpu, CheckCircle, AlertTriangle, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react';
 import './LlmControl.css';
 
 const PROVIDER_MODELS = {
+  ollama: [
+    { id: 'qwen2.5:14b', name: 'Qwen 2.5 14B' },
+    { id: 'qwen2.5:7b', name: 'Qwen 2.5 7B' },
+    { id: 'qwen2.5:32b', name: 'Qwen 2.5 32B' },
+    { id: 'qwen2.5-coder:14b', name: 'Qwen 2.5 Coder 14B' },
+    { id: 'llama3.3:latest', name: 'Llama 3.3' },
+    { id: 'deepseek-r1:14b', name: 'DeepSeek R1 14B' },
+    { id: 'deepseek-r1:8b', name: 'DeepSeek R1 8B' },
+    { id: 'gemma4:e4b', name: 'Gemma 4 e4b' },
+    { id: 'mistral:latest', name: 'Mistral' }
+  ],
   gemini: [
     { id: 'gemini-3.5-flash', name: 'Gemini 3.5 Flash' },
     { id: 'gemini-3.1-pro', name: 'Gemini 3.1 Pro' },
@@ -53,18 +64,22 @@ const LlmControl = ({
     }
   }, [aiProvider]);
 
-  // Sync isCustomOllama when models list loads
+  // Sync isCustomOllama when model or models list changes
   useEffect(() => {
-    if (aiProvider === 'ollama' && ollamaModels.length > 0) {
-      const isModelPulled = ollamaModels.includes(aiModel);
-      if (!isModelPulled) {
+    if (aiProvider === 'ollama') {
+      const isPreset = PROVIDER_MODELS.ollama.some(m => m.id === aiModel);
+      const isPulled = ollamaModels.includes(aiModel);
+      if (!isPreset && !isPulled && aiModel) {
         setIsCustomOllama(true);
+      } else {
+        setIsCustomOllama(false);
       }
     }
-  }, [aiProvider, ollamaModels]);
+  }, [aiProvider, ollamaModels, aiModel]);
 
   const fetchOllamaModels = async () => {
     try {
+      setOllamaStatus('PENDING');
       const response = await fetch('/api/ollama/models');
       if (response.ok) {
         const data = await response.json();
@@ -88,13 +103,14 @@ const LlmControl = ({
     } else if (provider === 'anthropic') {
       setAiModel('claude-sonnet-5');
     } else if (provider === 'ollama') {
-      // Keep model name intact if already set and we have no dynamic models fetched yet
       if (ollamaModels.length > 0) {
-        if (!ollamaModels.includes(aiModel)) {
-          setAiModel(ollamaModels[0]);
+        if (!ollamaModels.includes(aiModel) && !PROVIDER_MODELS.ollama.some(m => m.id === aiModel)) {
+          setAiModel(ollamaModels.includes('qwen2.5:14b') ? 'qwen2.5:14b' : ollamaModels[0]);
         }
       } else {
-        setAiModel('gemma4:e4b');
+        if (!aiModel || !PROVIDER_MODELS.ollama.some(m => m.id === aiModel)) {
+          setAiModel('qwen2.5:14b');
+        }
       }
     }
   };
@@ -202,70 +218,78 @@ const LlmControl = ({
       ) : null}
 
       <div className="llm-model-section">
-        <div className="llm-field-header">
-          <Cpu size={12} className="llm-field-icon" />
-          <label className="llm-field-label">Model</label>
+        <div className="llm-field-header" style={{ justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+            <Cpu size={12} className="llm-field-icon" />
+            <label className="llm-field-label">Model</label>
+          </div>
+          {aiProvider === 'ollama' && (
+            <button
+              onClick={fetchOllamaModels}
+              title="Refresh Ollama Models"
+              className="llm-refresh-btn"
+              type="button"
+            >
+              <RefreshCw size={11} className={ollamaStatus === 'PENDING' ? 'spin' : ''} />
+              <span>Refresh</span>
+            </button>
+          )}
         </div>
         {aiProvider === 'ollama' ? (
-          ollamaStatus === 'ONLINE' && ollamaModels.length > 0 ? (
-            <div className="llm-ollama-status-block">
-              <select
-                value={isCustomOllama ? 'custom' : aiModel}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (val === 'custom') {
-                    setIsCustomOllama(true);
-                  } else {
-                    setIsCustomOllama(false);
-                    setAiModel(val);
-                  }
-                }}
-                className="llm-select"
-              >
-                {ollamaModels.map((model) => (
-                  <option key={model} value={model}>
-                    {model}
+          <div className="llm-ollama-status-block">
+            {ollamaStatus === 'OFFLINE' && (
+              <div className="llm-alert-box warning">
+                <AlertTriangle size={12} className="alert-icon" />
+                <span>Ollama is offline. Make sure Ollama is running.</span>
+              </div>
+            )}
+            {ollamaStatus === 'PENDING' && (
+              <div className="llm-alert-box info">
+                <span>Checking Ollama models...</span>
+              </div>
+            )}
+            <select
+              value={isCustomOllama ? 'custom' : aiModel}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === 'custom') {
+                  setIsCustomOllama(true);
+                } else {
+                  setIsCustomOllama(false);
+                  setAiModel(val);
+                }
+              }}
+              className="llm-select"
+            >
+              {ollamaModels.length > 0 && (
+                <optgroup label="Installed Ollama Models">
+                  {ollamaModels.map((model) => (
+                    <option key={model} value={model}>
+                      {model}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              <optgroup label={ollamaModels.length > 0 ? "Preset Models" : "Available / Preset Models"}>
+                {PROVIDER_MODELS.ollama.map((model) => (
+                  <option key={model.id} value={model.id}>
+                    {model.name} ({model.id})
                   </option>
                 ))}
-                <option value="custom">Custom Model...</option>
-              </select>
-              {isCustomOllama && (
-                <input
-                  type="text"
-                  value={aiModel}
-                  onChange={(e) => setAiModel(e.target.value)}
-                  placeholder="Type model name (e.g. llama3)"
-                  className="llm-input llm-text-input"
-                  style={{ marginTop: '0.5rem' }}
-                />
-              )}
-            </div>
-          ) : (
-            <div className="llm-ollama-status-block">
-              {ollamaStatus === 'OFFLINE' ? (
-                <div className="llm-alert-box warning">
-                  <AlertTriangle size={12} className="alert-icon" />
-                  <span>Ollama is offline. Make sure the desktop app is running.</span>
-                </div>
-              ) : ollamaStatus === 'PENDING' ? (
-                <div className="llm-alert-box info">
-                  <span>Checking Ollama status...</span>
-                </div>
-              ) : (
-                <div className="llm-alert-box warning">
-                  <AlertTriangle size={12} className="alert-icon" />
-                  <span>No models pulled in Ollama. Pull one e.g. 'gemma4:e4b'.</span>
-                </div>
-              )}
+              </optgroup>
+              <option value="custom">Custom Model...</option>
+            </select>
+            {isCustomOllama && (
               <input
                 type="text"
                 value={aiModel}
                 onChange={(e) => setAiModel(e.target.value)}
-                placeholder="Type model name (e.g. gemma4:e4b)"
+                placeholder="Type model name (e.g. qwen2.5:14b)"
                 className="llm-input llm-text-input"
+                style={{ marginTop: '0.25rem' }}
               />
-            </div>
-          )
+            )}
+          </div>
         ) : (
           <select
             value={aiModel}
